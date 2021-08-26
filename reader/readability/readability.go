@@ -24,7 +24,7 @@ const (
 
 var (
 	divToPElementsRegexp = regexp.MustCompile(`(?i)<(a|blockquote|dl|div|img|ol|p|pre|table|ul)`)
-	sentenceRegexp       = regexp.MustCompile(`\.( |$)`)
+	sentenceRegexp       = regexp.MustCompile(`(\.( |$)|。)`)
 
 	blacklistCandidatesRegexp  = regexp.MustCompile(`(?i)popupbody|-ad|g-plus`)
 	okMaybeItsACandidateRegexp = regexp.MustCompile(`(?i)and|article|body|column|main|shadow`)

@@ -41,12 +41,11 @@ func Sanitize(baseURL, input string) string {
 		}
 
 		token := tokenizer.Token()
+		if blacklistedTagDepth > 0 && token.Type != html.EndTagToken {
+			continue
+		}
 		switch token.Type {
 		case html.TextToken:
-			if blacklistedTagDepth > 0 {
-				continue
-			}
-
 			// An iframe element never has fallback content.
 			// See https://www.w3.org/TR/2010/WD-html5-20101019/the-iframe-element.html#the-iframe-element
 			if parentTag == "iframe" {
@@ -70,14 +69,14 @@ func Sanitize(baseURL, input string) string {
 
 					tagStack = append(tagStack, tagName)
 				}
-			} else if isBlockedTag(tagName) {
+			} else if isBlockedTag(token.Data) {
 				blacklistedTagDepth++
 			}
 		case html.EndTagToken:
 			tagName := token.DataAtom.String()
 			if isValidTag(tagName) && inList(tagName, tagStack) {
 				buffer.WriteString(fmt.Sprintf("</%s>", tagName))
-			} else if isBlockedTag(tagName) {
+			} else if isBlockedTag(token.Data) {
 				blacklistedTagDepth--
 			}
 		case html.SelfClosingTagToken:
@@ -327,6 +326,14 @@ func isValidIframeSource(baseURL, src string) bool {
 		"https://bandcamp.com",
 		"https://cdn.embedly.com",
 		"https://player.bilibili.com",
+		"http://player.bilibili.com",
+		"https://store.steampowered.com/widget/",
+		"//player.bilibili.com",
+		"https://v.qq.com/txp/iframe/player.html",
+		"//music.163.com/outchain/player",
+		"https://video.h5.weibo.cn",
+		"https://h5.video.weibo.com",
+		"https://v.miaopai.com/iframe",
 	}
 
 	// allow iframe from same origin
@@ -399,7 +406,9 @@ func getTagAllowList() map[string][]string {
 	whitelist["rt"] = []string{}
 	whitelist["rtc"] = []string{}
 	whitelist["ruby"] = []string{}
-	whitelist["iframe"] = []string{"width", "height", "frameborder", "src", "allowfullscreen"}
+	whitelist["b"] = []string{}
+	whitelist["small"] = []string{}
+	whitelist["iframe"] = []string{"width", "height", "frameborder", "src", "allowfullscreen", "scrolling"}
 	return whitelist
 }
 

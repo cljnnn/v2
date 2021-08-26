@@ -159,6 +159,7 @@ type rssItem struct {
 	Title          []rssTitle       `xml:"title"`
 	Links          []rssLink        `xml:"link"`
 	Description    string           `xml:"description"`
+	Content        string           `xml:"content"`
 	PubDate        string           `xml:"pubDate"`
 	Authors        []rssAuthor      `xml:"author"`
 	CommentLinks   []rssCommentLink `xml:"comments"`
@@ -264,7 +265,7 @@ func (r *rssItem) entryTitle() string {
 }
 
 func (r *rssItem) entryContent() string {
-	for _, value := range []string{r.DublinCoreContent, r.Description, r.PodcastDescription()} {
+	for _, value := range []string{r.DublinCoreContent, r.Content, r.Description, r.PodcastDescription()} {
 		if value != "" {
 			return value
 		}
