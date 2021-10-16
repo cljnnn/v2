@@ -7,6 +7,7 @@ package sanitizer // import "miniflux.app/reader/sanitizer"
 import (
 	"bytes"
 	"fmt"
+	"github.com/PuerkitoBio/goquery"
 	"io"
 	"regexp"
 	"strconv"
@@ -34,7 +35,7 @@ func Sanitize(baseURL, input string) string {
 		if tokenizer.Next() == html.ErrorToken {
 			err := tokenizer.Err()
 			if err == io.EOF {
-				return buffer.String()
+				return postSanitize(buffer.String())
 			}
 
 			return ""
@@ -94,6 +95,28 @@ func Sanitize(baseURL, input string) string {
 			}
 		}
 	}
+}
+
+var brSentenceRegex = regexp.MustCompile("([^>]*)<br/>")
+func postSanitize(input string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(input))
+	if err != nil {
+		return ""
+	}
+	// remove empty p
+	doc.Find("p").FilterFunction(func(i int, s *goquery.Selection) bool {
+		if s.Children().Size() > 0 {
+			return false
+		}
+		return strings.TrimSpace(s.Text()) == ""
+	}).Remove()
+	str, err := doc.Find("body").First().Html()
+	if err != nil {
+		return ""
+	}
+	// replace br with p
+	str = brSentenceRegex.ReplaceAllString(str, `<p>${1}</p>`)
+	return str
 }
 
 func sanitizeAttributes(baseURL, tagName string, attributes []html.Attribute) ([]string, string) {
