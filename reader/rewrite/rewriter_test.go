@@ -5,9 +5,25 @@
 package rewrite // import "miniflux.app/reader/rewrite"
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestParseRules(t *testing.T) {
+	rulesText := `add_dynamic_image,replace("article/(.*).svg"|"article/$1.png"),remove(".spam, .ads:not(.keep)")`
+	expected := []rule{
+		{name: "add_dynamic_image"},
+		{name: "replace", args: []string{"article/(.*).svg", "article/$1.png"}},
+		{name: "remove", args: []string{".spam, .ads:not(.keep)"}},
+	}
+
+	actual := parseRules(rulesText)
+
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf(`Parsed rules do not match expected rules: got %v instead of %v`, actual, expected)
+	}
+}
 
 func TestReplaceTextLinks(t *testing.T) {
 	scenarios := map[string]string{
@@ -160,6 +176,26 @@ func TestRewriteWithUnknownLazyNoScriptImage(t *testing.T) {
 	}
 }
 
+func TestRewriteWithLazySrcset(t *testing.T) {
+	description := `<img srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`
+	output := Rewriter("https://example.org/article", description, "add_dynamic_image")
+	expected := `<img srcset="https://example.org/image.jpg" data-srcset="https://example.org/image.jpg" alt="Image"/>`
+
+	if expected != output {
+		t.Errorf(`Not expected output: got "%s" instead of "%s"`, output, expected)
+	}
+}
+
+func TestRewriteWithImageAndLazySrcset(t *testing.T) {
+	description := `<img src="meow" srcset="" data-srcset="https://example.org/image.jpg" alt="Image">`
+	output := Rewriter("https://example.org/article", description, "add_dynamic_image")
+	expected := `<img src="meow" srcset="https://example.org/image.jpg" data-srcset="https://example.org/image.jpg" alt="Image"/>`
+
+	if expected != output {
+		t.Errorf(`Not expected output: got "%s" instead of "%s"`, output, expected)
+	}
+}
+
 func TestNewLineRewriteRule(t *testing.T) {
 	description := "A\nB\nC"
 	output := Rewriter("https://example.org/article", description, "nl2br")
@@ -234,7 +270,17 @@ func TestRewriteNoScriptImageWithNoScriptTag(t *testing.T) {
 func TestRewriteReplaceCustom(t *testing.T) {
 	content := `<img src="http://example.org/logo.svg"><img src="https://example.org/article/picture.svg">`
 	expected := `<img src="http://example.org/logo.svg"><img src="https://example.org/article/picture.png">`
-	output := Rewriter("https://example.org/artcle", content, `replace("article/(.*).svg"|"article/$1.png")`)
+	output := Rewriter("https://example.org/article", content, `replace("article/(.*).svg"|"article/$1.png")`)
+
+	if expected != output {
+		t.Errorf(`Not expected output: %s`, output)
+	}
+}
+
+func TestRewriteRemoveCustom(t *testing.T) {
+	content := `<div>Lorem Ipsum <span class="spam">I dont want to see this</span><span class="ads keep">Super important info</span></div>`
+	expected := `<div>Lorem Ipsum <span class="ads keep">Super important info</span></div>`
+	output := Rewriter("https://example.org/article", content, `remove(".spam, .ads:not(.keep)")`)
 
 	if expected != output {
 		t.Errorf(`Not expected output: %s`, output)

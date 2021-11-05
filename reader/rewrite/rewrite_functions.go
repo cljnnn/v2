@@ -100,9 +100,14 @@ func addDynamicImage(entryURL, entryContent string) string {
 		"data-380src",
 	}
 
+	candidateSrcsetAttrs := []string{
+		"data-srcset",
+	}
+
 	changed := false
 
 	doc.Find("img,div").Each(func(i int, img *goquery.Selection) {
+		// Src-linked candidates
 		for _, candidateAttr := range candidateAttrs {
 			if srcAttr, found := img.Attr(candidateAttr); found {
 				changed = true
@@ -112,6 +117,22 @@ func addDynamicImage(entryURL, entryContent string) string {
 				} else {
 					altAttr := img.AttrOr("alt", "")
 					img.ReplaceWithHtml(`<img src="` + srcAttr + `" alt="` + altAttr + `"/>`)
+				}
+
+				break
+			}
+		}
+
+		// Srcset-linked candidates
+		for _, candidateAttr := range candidateSrcsetAttrs {
+			if srcAttr, found := img.Attr(candidateAttr); found {
+				changed = true
+
+				if img.Is("img") {
+					img.SetAttr("srcset", srcAttr)
+				} else {
+					altAttr := img.AttrOr("alt", "")
+					img.ReplaceWithHtml(`<img srcset="` + srcAttr + `" alt="` + altAttr + `"/>`)
 				}
 
 				break
@@ -228,4 +249,16 @@ func replaceCustom(entryContent string, searchTerm string, replaceTerm string) s
 		return re.ReplaceAllString(entryContent, replaceTerm)
 	}
 	return entryContent
+}
+
+func removeCustom(entryContent string, selector string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(entryContent))
+	if err != nil {
+		return entryContent
+	}
+
+	doc.Find(selector).Remove()
+
+	output, _ := doc.Find("body").First().Html()
+	return output
 }
