@@ -6,7 +6,7 @@
     <title>{{template "title" .}} - Miniflux</title>
 
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Miniflux">
     <link rel="manifest" href="{{ route "webManifest" }}" crossorigin="use-credentials"/>
@@ -29,7 +29,9 @@
     <link rel="apple-touch-icon" sizes="167x167" href="{{ route "appIcon" "filename" "icon-167.png" }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ route "appIcon" "filename" "icon-180.png" }}">
 
-    <meta name="theme-color" content="{{ theme_color .theme }}">
+    <meta name="theme-color" content="{{ theme_color .theme "light" }}" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="{{ theme_color .theme "dark" }}" media="(prefers-color-scheme: dark)">
+
     <link rel="stylesheet" type="text/css" href="{{ route "stylesheet" "name" .theme "checksum" .theme_checksum }}">
 
     {{ if and .user .user.Stylesheet }}
@@ -45,6 +47,7 @@
 </head>
 <body
     {{ if .csrf }}data-csrf-token="{{ .csrf }}"{{ end }}
+    data-add-subscription-url="{{ route "addSubscription" }}"
     data-entries-status-url="{{ route "updateEntriesStatus" }}"
     data-refresh-all-feeds-url="{{ route "refreshAllFeeds" }}"
     {{ if .user }}{{ if not .user.KeyboardShortcuts }}data-disable-keyboard-shortcuts="true"{{ end }}{{ end }}>
@@ -53,7 +56,7 @@
     <header class="header">
         <nav>
             <div class="logo">
-                <a href="{{ route "unread" }}">Mini<span>flux</span></a>
+                <a href="{{ route .user.DefaultHomePage }}">Mini<span>flux</span></a>
             </div>
             <ul>
                 <li {{ if eq .menu "unread" }}class="active"{{ end }} title="{{ t "tooltip.keyboard_shortcuts" "g u" }}">
@@ -74,6 +77,9 @@
                       {{ if gt .countErrorFeeds 0 }}
                           <span class="error-feeds-counter-wrapper">(<span class="error-feeds-counter">{{ .countErrorFeeds }}</span>)</span>
                       {{ end }}
+                    </a>
+                    <a href="{{ route "addSubscription" }}" title="{{ t "tooltip.keyboard_shortcuts" "+" }}">
+                        (+)
                     </a>
                 </li>
                 <li {{ if eq .menu "categories" }}class="active"{{ end }} title="{{ t "tooltip.keyboard_shortcuts" "g c" }}">
@@ -123,6 +129,7 @@
                     <li>{{ t "page.keyboard_shortcuts.go_to_categories" }} = <strong>g + c</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.go_to_settings" }} = <strong>g + s</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.show_keyboard_shortcuts" }} = <strong>?</strong></li>
+                    <li>{{ t "menu.add_feed" }} = <strong>+</strong></li>
                 </ul>
 
                 <p>{{ t "page.keyboard_shortcuts.subtitle.items" }}</p>
@@ -145,7 +152,8 @@
                     <li>{{ t "page.keyboard_shortcuts.open_original_same_window" }} = <strong>V</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.open_comments" }} = <strong>c</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.open_comments_same_window" }} = <strong>C</strong></li>
-                    <li>{{ t "page.keyboard_shortcuts.toggle_read_status" }} = <strong>m</strong></li>
+                    <li>{{ t "page.keyboard_shortcuts.toggle_read_status_next" }} = <strong>m</strong></li>
+                    <li>{{ t "page.keyboard_shortcuts.toggle_read_status_prev" }} = <strong>M</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.mark_page_as_read" }} = <strong>A</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.download_content" }} = <strong>d</strong></li>
                     <li>{{ t "page.keyboard_shortcuts.toggle_bookmark_status" }} = <strong>f</strong></li>

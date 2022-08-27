@@ -21,17 +21,17 @@ type byStateAndName struct{ f model.Feeds }
 func (l byStateAndName) Len() int      { return len(l.f) }
 func (l byStateAndName) Swap(i, j int) { l.f[i], l.f[j] = l.f[j], l.f[i] }
 func (l byStateAndName) Less(i, j int) bool {
-	if l.f[i].ParsingErrorCount > 0 && l.f[j].ParsingErrorCount == 0 {
-		return true
-	} else if l.f[i].ParsingErrorCount == 0 && l.f[j].ParsingErrorCount > 0 {
-		return false
-	} else if l.f[i].UnreadCount > 0 && l.f[j].UnreadCount == 0 {
-		return true
-	} else if l.f[i].UnreadCount == 0 && l.f[j].UnreadCount > 0 {
-		return false
-	} else {
-		return l.f[i].Title < l.f[j].Title
+	// disabled test first, since we don't care about errors if disabled
+	if l.f[i].Disabled != l.f[j].Disabled {
+		return l.f[j].Disabled
 	}
+	if l.f[i].ParsingErrorCount != l.f[j].ParsingErrorCount {
+		return l.f[i].ParsingErrorCount > l.f[j].ParsingErrorCount
+	}
+	if l.f[i].UnreadCount != l.f[j].UnreadCount {
+		return l.f[i].UnreadCount > l.f[j].UnreadCount
+	}
+	return l.f[i].Title < l.f[j].Title
 }
 
 // FeedExists checks if the given feed exists.
@@ -158,6 +158,14 @@ func (s *Storage) FeedsWithCounters(userID int64) (model.Feeds, error) {
 	return getFeedsSorted(builder)
 }
 
+// Return read and unread count.
+func (s *Storage) FetchCounters(userID int64) (model.FeedCounters, error) {
+	builder := NewFeedQueryBuilder(s, userID)
+	builder.WithCounters()
+	reads, unreads, err := builder.fetchFeedCounter()
+	return model.FeedCounters{ReadCounters: reads, UnreadCounters: unreads}, err
+}
+
 // FeedsByCategoryWithCounters returns all feeds of the given user/category with counters of read and unread entries.
 func (s *Storage) FeedsByCategoryWithCounters(userID, categoryID int64) (model.Feeds, error) {
 	builder := NewFeedQueryBuilder(s, userID)
@@ -234,10 +242,11 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 			ignore_http_cache,
 			allow_self_signed_certificates,
 			fetch_via_proxy,
-			hide_globally
+			hide_globally,
+			url_rewrite_rules
 		)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
 		RETURNING
 			id
 	`
@@ -264,6 +273,7 @@ func (s *Storage) CreateFeed(feed *model.Feed) error {
 		feed.AllowSelfSignedCertificates,
 		feed.FetchViaProxy,
 		feed.HideGlobally,
+		feed.UrlRewriteRules,
 	).Scan(&feed.ID)
 	if err != nil {
 		return fmt.Errorf(`store: unable to create feed %q: %v`, feed.FeedURL, err)
@@ -322,9 +332,10 @@ func (s *Storage) UpdateFeed(feed *model.Feed) (err error) {
 			ignore_http_cache=$21,
 			allow_self_signed_certificates=$22,
 			fetch_via_proxy=$23,
-			hide_globally=$24
+			hide_globally=$24,
+			url_rewrite_rules=$25
 		WHERE
-			id=$25 AND user_id=$26
+			id=$26 AND user_id=$27
 	`
 	_, err = s.db.Exec(query,
 		feed.FeedURL,
@@ -351,6 +362,7 @@ func (s *Storage) UpdateFeed(feed *model.Feed) (err error) {
 		feed.AllowSelfSignedCertificates,
 		feed.FetchViaProxy,
 		feed.HideGlobally,
+		feed.UrlRewriteRules,
 		feed.ID,
 		feed.UserID,
 	)

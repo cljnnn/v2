@@ -32,6 +32,11 @@ var (
 func CreateFeed(store *storage.Storage, userID int64, feedCreationRequest *model.FeedCreationRequest) (*model.Feed, error) {
 	defer timer.ExecutionTime(time.Now(), fmt.Sprintf("[CreateFeed] FeedURL=%s", feedCreationRequest.FeedURL))
 
+	user, storeErr := store.UserByID(userID)
+	if storeErr != nil {
+		return nil, storeErr
+	}
+
 	if !store.CategoryIDExists(userID, feedCreationRequest.CategoryID) {
 		return nil, errors.NewLocalizedError(errCategoryNotFound)
 	}
@@ -74,11 +79,12 @@ func CreateFeed(store *storage.Storage, userID int64, feedCreationRequest *model
 	subscription.RewriteRules = feedCreationRequest.RewriteRules
 	subscription.BlocklistRules = feedCreationRequest.BlocklistRules
 	subscription.KeeplistRules = feedCreationRequest.KeeplistRules
+	subscription.UrlRewriteRules = feedCreationRequest.UrlRewriteRules
 	subscription.WithCategoryID(feedCreationRequest.CategoryID)
 	subscription.WithClientResponse(response)
 	subscription.CheckedNow()
 
-	processor.ProcessFeedEntries(store, subscription)
+	processor.ProcessFeedEntries(store, subscription, user)
 
 	if storeErr := store.CreateFeed(subscription); storeErr != nil {
 		return nil, storeErr
@@ -90,6 +96,7 @@ func CreateFeed(store *storage.Storage, userID int64, feedCreationRequest *model
 		store,
 		subscription.ID,
 		subscription.SiteURL,
+		feedCreationRequest.UserAgent,
 		feedCreationRequest.FetchViaProxy,
 		feedCreationRequest.AllowSelfSignedCertificates,
 	)
@@ -99,8 +106,12 @@ func CreateFeed(store *storage.Storage, userID int64, feedCreationRequest *model
 // RefreshFeed refreshes a feed.
 func RefreshFeed(store *storage.Storage, userID, feedID int64) error {
 	defer timer.ExecutionTime(time.Now(), fmt.Sprintf("[RefreshFeed] feedID=%d", feedID))
-	userLanguage := store.UserLanguage(userID)
-	printer := locale.NewPrinter(userLanguage)
+	user, storeErr := store.UserByID(userID)
+	if storeErr != nil {
+		return storeErr
+	}
+
+	printer := locale.NewPrinter(user.Language)
 
 	originalFeed, storeErr := store.FeedByID(userID, feedID)
 	if storeErr != nil {
@@ -162,7 +173,7 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64) error {
 		}
 
 		originalFeed.Entries = updatedFeed.Entries
-		processor.ProcessFeedEntries(store, originalFeed)
+		processor.ProcessFeedEntries(store, originalFeed, user)
 
 		// We don't update existing entries when the crawler is enabled (we crawl only inexisting entries).
 		if storeErr := store.RefreshFeedEntries(originalFeed.UserID, originalFeed.ID, originalFeed.Entries, !originalFeed.Crawler); storeErr != nil {
@@ -178,6 +189,7 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64) error {
 			store,
 			originalFeed.ID,
 			originalFeed.SiteURL,
+			originalFeed.UserAgent,
 			originalFeed.FetchViaProxy,
 			originalFeed.AllowSelfSignedCertificates,
 		)
@@ -196,9 +208,9 @@ func RefreshFeed(store *storage.Storage, userID, feedID int64) error {
 	return nil
 }
 
-func checkFeedIcon(store *storage.Storage, feedID int64, websiteURL string, fetchViaProxy, allowSelfSignedCertificates bool) {
+func checkFeedIcon(store *storage.Storage, feedID int64, websiteURL, userAgent string, fetchViaProxy, allowSelfSignedCertificates bool) {
 	if !store.HasIcon(feedID) {
-		icon, err := icon.FindIcon(websiteURL, fetchViaProxy, allowSelfSignedCertificates)
+		icon, err := icon.FindIcon(websiteURL, userAgent, fetchViaProxy, allowSelfSignedCertificates)
 		if err != nil {
 			logger.Debug(`[CheckFeedIcon] %v (feedID=%d websiteURL=%s)`, err, feedID, websiteURL)
 		} else if icon == nil {

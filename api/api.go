@@ -47,6 +47,7 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 	sr.HandleFunc("/discover", handler.discoverSubscriptions).Methods(http.MethodPost)
 	sr.HandleFunc("/feeds", handler.createFeed).Methods(http.MethodPost)
 	sr.HandleFunc("/feeds", handler.getFeeds).Methods(http.MethodGet)
+	sr.HandleFunc("/feeds/counters", handler.fetchCounters).Methods(http.MethodGet)
 	sr.HandleFunc("/feeds/refresh", handler.refreshAllFeeds).Methods(http.MethodPut)
 	sr.HandleFunc("/feeds/{feedID}/refresh", handler.refreshFeed).Methods(http.MethodPut)
 	sr.HandleFunc("/feeds/{feedID}", handler.getFeed).Methods(http.MethodGet)
@@ -62,4 +63,5 @@ func Serve(router *mux.Router, store *storage.Storage, pool *worker.Pool) {
 	sr.HandleFunc("/entries", handler.setEntryStatus).Methods(http.MethodPut)
 	sr.HandleFunc("/entries/{entryID}", handler.getEntry).Methods(http.MethodGet)
 	sr.HandleFunc("/entries/{entryID}/bookmark", handler.toggleBookmark).Methods(http.MethodPut)
+	sr.HandleFunc("/entries/{entryID}/fetch-content", handler.fetchContent).Methods(http.MethodGet)
 }

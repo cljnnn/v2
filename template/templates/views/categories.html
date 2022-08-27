@@ -5,7 +5,7 @@
     <h1>{{ t "page.categories.title" }} ({{ .total }})</h1>
     <ul>
         <li>
-            <a href="{{ route "createCategory" }}">{{ t "menu.create_category" }}</a>
+            <a href="{{ route "createCategory" }}">{{ icon "add-category" }}{{ t "menu.create_category" }}</a>
         </li>
     </ul>
 </section>
@@ -15,7 +15,7 @@
 {{ else }}
     <div class="items">
         {{ range .categories }}
-        <article role="article" class="item">
+        <article role="article" class="item{{if gt .TotalUnread 0 }} category-has-unread{{end}}">
             <div class="item-header" dir="auto">
                 <span class="item-title">
                     <a href="{{ route "categoryEntries" "categoryID" .ID }}">{{ .Title }}</a>

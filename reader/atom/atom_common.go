@@ -24,6 +24,18 @@ func (a *atomPerson) String() string {
 	return strings.TrimSpace(name)
 }
 
+type atomAuthors []*atomPerson
+
+func (a atomAuthors) String() string {
+	var authors []string
+
+	for _, person := range a {
+		authors = append(authors, person.String())
+	}
+
+	return strings.Join(authors, ", ")
+}
+
 type atomLink struct {
 	URL    string `xml:"href,attr"`
 	Type   string `xml:"type,attr"`
@@ -39,7 +51,7 @@ func (a atomLinks) originalLink() string {
 			return strings.TrimSpace(link.URL)
 		}
 
-		if link.Rel == "" && link.Type == "" {
+		if link.Rel == "" && (link.Type == "" || link.Type == "text/html") {
 			return strings.TrimSpace(link.URL)
 		}
 	}

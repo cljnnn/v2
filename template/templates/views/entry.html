@@ -13,6 +13,7 @@
                     <a href="#"
                         title="{{ t "entry.status.title" }}"
                         data-toggle-status="true"
+                        data-label-loading="{{ t "entry.state.saving" }}"
                         data-label-unread="{{ t "entry.status.unread" }}"
                         data-label-read="{{ t "entry.status.read" }}"
                         data-toast-unread="{{ t "entry.status.toast.unread" }}"
@@ -44,17 +45,28 @@
                             >{{ icon "save" }}<span class="icon-label">{{ t "entry.save.label" }}</span></a>
                     </li>
                 {{ end }}
-                <li>
-                    {{ if .entry.ShareCode }}
+                {{ if .entry.ShareCode }}
+                    <li>
                         <a href="{{ route "sharedEntry" "shareCode" .entry.ShareCode }}"
                             title="{{ t "entry.shared_entry.title" }}"
                             target="_blank">{{ icon "share" }}<span class="icon-label">{{ t "entry.shared_entry.label" }}</span></a>
-                    {{ else }}
+                    </li>
+                    <li>
+                        <a href="#"
+                            data-confirm="true"
+                            data-url="{{ route "unshareEntry" "entryID" .entry.ID }}"
+                            data-label-question="{{ t "confirm.question" }}"
+                            data-label-yes="{{ t "confirm.yes" }}"
+                            data-label-no="{{ t "confirm.no" }}"
+                            data-label-loading="{{ t "confirm.loading" }}">{{ icon "delete" }}<span class="icon-label">{{ t "entry.unshare.label" }}</span></a>
+                    </li>
+                {{ else }}
+                    <li>
                         <a href="{{ route "shareEntry" "entryID" .entry.ID }}"
                             title="{{ t "entry.share.title" }}"
                             target="_blank">{{ icon "share" }}<span class="icon-label">{{ t "entry.share.label" }}</span></a>
-                    {{ end }}
-                </li>
+                    </li>
+                {{ end }}
                 <li>
                     <a href="{{ .entry.URL | safeURL  }}"
                         target="_blank"
@@ -126,7 +138,7 @@
     </header>
     {{ if gt (len .entry.Content) 120 }}
     {{ if .user }}
-    <div class="pagination-top">
+    <div class="pagination-entry-top">
         {{ template "entry_pagination" . }}
     </div>
     {{ end }}
@@ -178,7 +190,7 @@
 </section>
 
 {{ if .user }}
-<div class="pagination-bottom">
+<div class="pagination-entry-bottom">
     {{ template "entry_pagination" . }}
 </div>
 {{ end }}

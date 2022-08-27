@@ -8,11 +8,13 @@ import (
 	json_parser "encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"miniflux.app/http/request"
 	"miniflux.app/http/response/json"
 	"miniflux.app/model"
+	"miniflux.app/reader/processor"
 	"miniflux.app/storage"
 	"miniflux.app/validator"
 )
@@ -172,6 +174,57 @@ func (h *handler) toggleBookmark(w http.ResponseWriter, r *http.Request) {
 	json.NoContent(w, r)
 }
 
+func (h *handler) fetchContent(w http.ResponseWriter, r *http.Request) {
+	loggedUserID := request.UserID(r)
+	entryID := request.RouteInt64Param(r, "entryID")
+
+	entryBuilder := h.store.NewEntryQueryBuilder(loggedUserID)
+	entryBuilder.WithEntryID(entryID)
+	entryBuilder.WithoutStatus(model.EntryStatusRemoved)
+
+	entry, err := entryBuilder.GetEntry()
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+
+	if entry == nil {
+		json.NotFound(w, r)
+		return
+	}
+
+	user, err := h.store.UserByID(entry.UserID)
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+
+	if user == nil {
+		json.NotFound(w, r)
+		return
+	}
+
+	feedBuilder := storage.NewFeedQueryBuilder(h.store, loggedUserID)
+	feedBuilder.WithFeedID(entry.FeedID)
+	feed, err := feedBuilder.GetFeed()
+	if err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+
+	if feed == nil {
+		json.NotFound(w, r)
+		return
+	}
+
+	if err := processor.ProcessEntryWebPage(feed, entry, user); err != nil {
+		json.ServerError(w, r, err)
+		return
+	}
+
+	json.OK(w, r, map[string]string{"content": entry.Content})
+}
+
 func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 	beforeEntryID := request.QueryInt64Param(r, "before_entry_id", 0)
 	if beforeEntryID > 0 {
@@ -199,7 +252,10 @@ func configureFilters(builder *storage.EntryQueryBuilder, r *http.Request) {
 	}
 
 	if request.HasQueryParam(r, "starred") {
-		builder.WithStarred()
+		starred, err := strconv.ParseBool(r.URL.Query().Get("starred"))
+		if err == nil {
+			builder.WithStarred(starred)
+		}
 	}
 
 	searchQuery := request.QueryStringParam(r, "search", "")

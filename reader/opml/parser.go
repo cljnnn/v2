@@ -14,16 +14,32 @@ import (
 
 // Parse reads an OPML file and returns a SubcriptionList.
 func Parse(data io.Reader) (SubcriptionList, *errors.LocalizedError) {
-	feeds := new(opml)
+	opmlDocument := NewOPMLDocument()
 	decoder := xml.NewDecoder(data)
 	decoder.Entity = xml.HTMLEntity
 	decoder.Strict = false
 	decoder.CharsetReader = encoding.CharsetReader
 
-	err := decoder.Decode(feeds)
+	err := decoder.Decode(opmlDocument)
 	if err != nil {
 		return nil, errors.NewLocalizedError("Unable to parse OPML file: %q", err)
 	}
 
-	return feeds.Transform(), nil
+	return getSubscriptionsFromOutlines(opmlDocument.Outlines, ""), nil
+}
+
+func getSubscriptionsFromOutlines(outlines opmlOutlineCollection, category string) (subscriptions SubcriptionList) {
+	for _, outline := range outlines {
+		if outline.IsSubscription() {
+			subscriptions = append(subscriptions, &Subcription{
+				Title:        outline.GetTitle(),
+				FeedURL:      outline.FeedURL,
+				SiteURL:      outline.GetSiteURL(),
+				CategoryName: category,
+			})
+		} else if outline.Outlines.HasChildren() {
+			subscriptions = append(subscriptions, getSubscriptionsFromOutlines(outline.Outlines, outline.Text)...)
+		}
+	}
+	return subscriptions
 }
